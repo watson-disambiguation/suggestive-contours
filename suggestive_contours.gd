@@ -1,9 +1,11 @@
 @tool
-class_name PostProcess extends CompositorEffect
+class_name SuggestiveContours extends CompositorEffect
 
 @export var edge_radius: float = 1
 @export var edge_portion: float = 0.1
 @export var edge_threshold: float = 0.1
+@export var normal_threshold: float = 0.5
+@export var depth_threshold: float = 0.5
 
 var rd : RenderingDevice
 var shader : RID
@@ -24,7 +26,10 @@ func _render_callback(effect_callback_type: int, render_data: RenderData) -> voi
 	if not rd: return
 	
 	var scene_buffers : RenderSceneBuffersRD = render_data.get_render_scene_buffers()
-	if not scene_buffers: return
+	var scene_data : RenderSceneDataRD = render_data.get_render_scene_data()
+	if not scene_buffers or not scene_data: return
+	
+	var inv_proj_mat : Projection = scene_data.get_cam_projection().inverse()
 	
 	var size : Vector2i = scene_buffers.get_internal_size()
 	# if size on either axis is 0, can create any work groups
@@ -40,6 +45,10 @@ func _render_callback(effect_callback_type: int, render_data: RenderData) -> voi
 	push_constants.append(edge_portion)
 	push_constants.append(edge_threshold)
 	# need to pack to fill sufficient bytes
+	push_constants.append(inv_proj_mat[2].w)
+	push_constants.append(inv_proj_mat[3].w)
+	push_constants.append(normal_threshold)
+	push_constants.append(depth_threshold)
 	push_constants.append(0.0)
 	push_constants.append(0.0)
 	push_constants.append(0.0)
@@ -64,7 +73,21 @@ func _render_callback(effect_callback_type: int, render_data: RenderData) -> voi
 		uniform_normal.binding = 1
 		uniform_normal.add_id(normal_tex)
 		
-		var image_uniform_set : RID = UniformSetCacheRD.get_cache(shader, 0, [uniform_screen, uniform_normal])
+		var depth_tex : RID = scene_buffers.get_depth_layer(view);
+		
+		var sampler_state : RDSamplerState = RDSamplerState.new()
+		sampler_state.min_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+		sampler_state.mag_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
+		var linear_sampler : RID = rd.sampler_create(sampler_state)
+		
+		# create uniform for passing screen normal texture data
+		var uniform_depth : RDUniform = RDUniform.new()
+		uniform_depth.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+		uniform_depth.binding = 2
+		uniform_depth.add_id(linear_sampler)
+		uniform_depth.add_id(depth_tex)
+		
+		var image_uniform_set : RID = UniformSetCacheRD.get_cache(shader, 0, [uniform_screen, uniform_normal, uniform_depth])
 		
 		var compute_list : int = rd.compute_list_begin()
 		rd.compute_list_bind_compute_pipeline(compute_list, pipeline)
@@ -78,7 +101,7 @@ func initialize_compute_shader() -> void:
 	if not rd: return
 	
 	# load in file from data
-	var glsl_file : RDShaderFile = load("res://test.glsl")
+	var glsl_file : RDShaderFile = load("res://suggestive_contours.glsl")
 	shader = rd.shader_create_from_spirv(glsl_file.get_spirv())
 	pipeline = rd.compute_pipeline_create(shader)
 	

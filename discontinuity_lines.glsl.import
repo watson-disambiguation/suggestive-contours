@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://mfhocxi2pey1"
+path="res://.godot/imported/discontinuity_lines.glsl-387b108bf5dcc15aa1682696ede8978d.res"
+
+[deps]
+
+source_file="res://discontinuity_lines.glsl"
+dest_files=["res://.godot/imported/discontinuity_lines.glsl-387b108bf5dcc15aa1682696ede8978d.res"]
+
+[params]
+

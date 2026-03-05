@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://c5a48b3pnecra"]
 
-[ext_resource type="Script" uid="uid://b0ctcc4tvowat" path="res://post_process.gd" id="1_8uh7m"]
+[ext_resource type="Script" uid="uid://b0ctcc4tvowat" path="res://suggestive_contours.gd" id="1_8uh7m"]
 [ext_resource type="ArrayMesh" uid="uid://ji5uubu0gl45" path="res://bunny.obj" id="1_37kl0"]
 [ext_resource type="ArrayMesh" uid="uid://cangiscqcy7gp" path="res://Richier01.OBJ" id="3_6uqi0"]
 
@@ -9,7 +9,7 @@
 [sub_resource type="Environment" id="Environment_8uh7m"]
 sky = SubResource("Sky_37kl0")
 
-[sub_resource type="CompositorEffect" id="CompositorEffect_ppyta"]
+[sub_resource type="CompositorEffect" id="CompositorEffect_6uqi0"]
 resource_local_to_scene = false
 resource_name = ""
 enabled = true
@@ -17,13 +17,19 @@ effect_callback_type = 4
 needs_motion_vectors = false
 needs_normal_roughness = true
 script = ExtResource("1_8uh7m")
-edge_radius = 2.0
-edge_portion = 0.335
-edge_threshold = 0.12
+edge_radius = 3.0
+edge_portion = 0.285
+edge_threshold = 0.085
+normal_threshold = 10000.0
+depth_threshold = 10000.0
 metadata/_custom_type_script = "uid://b0ctcc4tvowat"
 
 [sub_resource type="Compositor" id="Compositor_ppyta"]
-compositor_effects = Array[CompositorEffect]([SubResource("CompositorEffect_ppyta")])
+compositor_effects = Array[CompositorEffect]([SubResource("CompositorEffect_6uqi0")])
+
+[sub_resource type="BoxMesh" id="BoxMesh_6uqi0"]
+
+[sub_resource type="TorusMesh" id="TorusMesh_ppyta"]
 
 [node name="Node3D" type="Node3D" unique_id=600718237]
 
@@ -42,5 +48,15 @@ gi_mode = 0
 mesh = ExtResource("1_37kl0")
 
 [node name="Richier01" type="MeshInstance3D" parent="WorldEnvironment" unique_id=461936424]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.0670257, 0, -0.07284981)
+transform = Transform3D(1.2491825, 0, 1.0626113, 0, 1.64, 0, -1.0626113, 0, 1.2491825, 1.0670257, 0, -0.51979953)
 mesh = ExtResource("3_6uqi0")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="WorldEnvironment" unique_id=2102868156]
+transform = Transform3D(0.35, 0, 0, 0, 0.35, 0, 0, 0, 0.35, -0.0037468672, -0.0076577663, -0.0055913925)
+mesh = SubResource("BoxMesh_6uqi0")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="WorldEnvironment" unique_id=429459519]
+transform = Transform3D(-0.94328064, 0, 0.33199638, 0, 1, 0, -0.33199638, 0, -0.94328064, 3.7591255, 0.51108265, 1.0180306)
+mesh = SubResource("TorusMesh_ppyta")
+
+[node name="MeshInstance3D3" type="MeshInstance3D" parent="WorldEnvironment" unique_id=725402094]

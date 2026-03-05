@@ -5,6 +5,7 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z =1) in;
 
 layout(rgba16f, binding = 0, set = 0) uniform image2D screen_tex;
 layout(rgba16f, binding = 1, set = 0) uniform image2D normal_tex;
+layout(binding = 2, set = 0) uniform sampler2D depth_tex;
 
 
 layout(push_constant, std430) uniform Params {
@@ -12,6 +13,10 @@ layout(push_constant, std430) uniform Params {
     float radius;
     float s;
     float d;
+    float inv_proj_2w;
+    float inv_proj_3w;
+    float normal_threshold;
+    float depth_threshold;
 } p;
 
 vec3 sample_normals(ivec2 pixel) {
@@ -69,6 +74,39 @@ int is_valley_or_peak(ivec2 pixel, int radius, float s, float d) {
     return 0;
 }
 
+float sample_depth(ivec2 pixel) {
+    vec2 uv = pixel / p.screen_size;
+    float depth = texture(depth_tex,uv).r;
+    float linear_depth = 1. / (depth * p.inv_proj_2w + p.inv_proj_3w);
+    return linear_depth;
+}
+
+float laplacian_depth(ivec2 center, int radius) {
+    float value = 0;
+    int diameter = 2 * radius + 1;
+    float center_value = float(diameter * diameter - 1);
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            float weight = (y == 0 && x == 0) ? center_value : -1.;
+            value += weight * sample_depth(center + ivec2(x,y));
+        }
+    }
+    return value;
+}
+
+float laplacian_normals(ivec2 center, int radius) {
+    vec3 value = vec3(0.);
+    int diameter = 2 * radius + 1;
+    float center_value = float(diameter * diameter - 1);
+    for (int y = -radius; y <= radius; y++) {
+        for (int x = -radius; x <= radius; x++) {
+            float weight = (y == 0 && x == 0) ? center_value : -1.;
+            value += weight * sample_normals(center + ivec2(x,y));
+        }
+    }
+    return max(value.r,max(value.g,value.b));
+}
+
 void main() {
 
     ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
@@ -101,6 +139,12 @@ void main() {
             break;
         default:
             color.rgb = background_color;
+    }
+    if (laplacian_depth(pixel,1) > p.depth_threshold) {
+        color.rgb = line_color_valley;
+    }
+    if (laplacian_normals(pixel,1) > p.normal_threshold) {
+        color.rgb = line_color_valley;
     }
 
     imageStore(screen_tex,pixel,color);
