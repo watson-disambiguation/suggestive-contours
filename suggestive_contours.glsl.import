@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://c4lobjkkod1gn"
+path="res://.godot/imported/suggestive_contours.glsl-f2289a460ef5d6c910ab1217cf6308c0.res"
+
+[deps]
+
+source_file="res://suggestive_contours.glsl"
+dest_files=["res://.godot/imported/suggestive_contours.glsl-f2289a460ef5d6c910ab1217cf6308c0.res"]
+
+[params]
+
