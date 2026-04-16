@@ -50,6 +50,7 @@ func _render_callback(effect_callback_type: int, render_data: RenderData) -> voi
 	var x_groups : int = size.x;
 	var y_groups : int = size.y;
 	
+
 	var push_constants : PackedByteArray = create_push_constants(size, inv_proj_mat)
 	
 	# create multiple views in case we are doing stereo rendering for VR
@@ -92,6 +93,7 @@ func _render_callback(effect_callback_type: int, render_data: RenderData) -> voi
 		rd.compute_list_bind_compute_pipeline(compute_list, pipeline)
 		rd.compute_list_bind_uniform_set(compute_list, image_uniform_set, 0)
 		rd.compute_list_set_push_constant(compute_list,push_constants,push_constants.size())
+
 		rd.compute_list_dispatch(compute_list, x_groups, y_groups, 1)
 		rd.compute_list_end()
 
