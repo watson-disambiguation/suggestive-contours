@@ -94,7 +94,7 @@ float laplacian_depth(ivec2 center, int radius) {
             value += weight * sample_depth(center + ivec2(x,y));
         }
     }
-    return value;
+    return -value;
 }
 
 float laplacian_normals(ivec2 center, int radius) {
@@ -107,6 +107,7 @@ float laplacian_normals(ivec2 center, int radius) {
             value += weight * sample_normals(center + ivec2(x,y));
         }
     }
+    //value = abs(value);
     return max(value.r,max(value.g,value.b));
 }
 
