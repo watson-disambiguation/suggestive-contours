@@ -4,7 +4,7 @@
 layout(local_size_x = 1, local_size_y = 1, local_size_z =1) in;
 
 layout(rgba16f, binding = 0, set = 0) uniform image2D screen_tex;
-layout(rgba16f, binding = 1, set = 0) uniform image2D normal_tex;
+layout(binding = 1, set = 0) uniform sampler2D normal_tex;
 layout(binding = 2, set = 0) uniform sampler2D depth_tex;
 
 
@@ -14,16 +14,23 @@ layout(push_constant, std430) uniform Params {
     float d;
     float inv_proj_2w;
     float inv_proj_3w;
-    float normal_threshold;
+    float close_normal_threshold;
+    float far_normal_threshold;
+    float depth_normal_cutoff;
+    float depth_normal_transition;
+    float curvature_normal_cutoff;
+    float curvature_normal_transition;
     float depth_threshold;
     vec3 line_color;
     vec3 highlight_color;
+    
     int radius;
     int flags;
 } p;
 
 vec3 sample_normals(ivec2 pixel) {
-    vec3 normal_raw = imageLoad(normal_tex, pixel).rgb;
+    vec2 uv = (vec2(pixel) + 0.5) / p.screen_size;
+    vec3 normal_raw = textureLod(normal_tex, uv, 0.).rgb;
     return normalize(normal_raw.rgb * 2.0 - 1.0);
 }
 
@@ -78,12 +85,27 @@ int is_valley_or_peak(ivec2 pixel, int radius, float s, float d) {
 }
 
 float sample_depth(ivec2 pixel) {
-    vec2 uv = pixel / p.screen_size;
+    vec2 uv = (vec2(pixel) + 0.5) / p.screen_size;
     float depth = texture(depth_tex,uv).r;
     float linear_depth = 1. / (depth * p.inv_proj_2w + p.inv_proj_3w);
     return linear_depth;
 }
 
+float sample_depth_nonlinear(ivec2 pixel) {
+    vec2 uv = (vec2(pixel) + 0.5) / p.screen_size;
+    return texture(depth_tex,uv).r;
+}
+
+float sample_curvature(ivec2 pixel) {
+    vec2 uv = (vec2(pixel) + 0.5) / p.screen_size;
+    float raw_curvature = textureLod(normal_tex, uv, 0.).w;
+    if (raw_curvature > 0.5) {
+        raw_curvature = 1.0 - raw_curvature;
+    }
+    raw_curvature /= (127.0 / 255.0);
+    float curvature = 2. * raw_curvature - 1.;
+    return curvature;
+}
 float laplacian_depth(ivec2 center, int radius) {
     float value = 0;
     int diameter = 2 * radius + 1;
@@ -120,7 +142,6 @@ void main() {
 
     vec4 original_color = imageLoad(screen_tex,pixel);
     vec4 color = original_color;
-    float threshold = 0.2;
 
     vec3 line_color = p.line_color;
     vec3 line_color_highlight = p.highlight_color;
@@ -130,12 +151,23 @@ void main() {
     bool do_depth_lines = (p.flags & 4) != 0;
     bool do_normal_lines = (p.flags & 8) != 0;
     bool debug_colours = (p.flags & 16) != 0;
+    bool measurement_debug_colours = (p.flags & 32) != 0;
+    bool do_selector = (p.flags & 64) != 0;
+    if (measurement_debug_colours) {
+        line_color = vec3(1.,0.,0.);
+        if (sample_depth_nonlinear(pixel) > 0.) {
+            color.rgb = vec3(0.,1.,0.);
+        }
+        else {
+            color.rgb = vec3(0.,0.,1.);
+        }
+    }
     if (debug_colours) {
         color.rgb = vec3(0.);
     }
     if (do_suggestive_contours) {
         int contour_status = is_valley_or_peak(pixel,p.radius,p.s,p.d);
-        switch (contour_status) {
+       switch (contour_status) {
             case 1: 
                 if (debug_colours) {
                     color.r = 1.;
@@ -167,7 +199,14 @@ void main() {
         }
         
     }
-    if (do_normal_lines && laplacian_normals(pixel,1) > p.normal_threshold) {
+    float normal_threshold = p.close_normal_threshold;
+    if (do_selector) {
+        float depth_selector = smoothstep(p.depth_normal_cutoff - p.depth_normal_transition, p.depth_normal_cutoff,sample_depth(pixel));
+        float curvature_selector = smoothstep(p.curvature_normal_cutoff - p.curvature_normal_transition,p.curvature_normal_cutoff , abs(sample_curvature(pixel)));
+        normal_threshold = mix(p.close_normal_threshold,p.far_normal_threshold, depth_selector * curvature_selector);
+    }
+    
+    if (do_normal_lines  && laplacian_normals(pixel,1) > normal_threshold) {
         if (debug_colours) {
             color.b = 1.;
         }
@@ -175,6 +214,6 @@ void main() {
             color.rgb = line_color;
         }
     }
-
+    
     imageStore(screen_tex,pixel,color);
 }

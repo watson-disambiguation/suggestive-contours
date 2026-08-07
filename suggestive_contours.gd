@@ -4,8 +4,13 @@ class_name SuggestiveContours extends CompositorEffect
 @export var edge_radius: int = 1
 @export var edge_portion: float = 0.1
 @export var edge_threshold: float = 0.1
-@export var normal_threshold: float = 0.5
+@export var close_normal_threshold: float = 0.5
+@export var far_normal_threshold: float = 0.5
 @export var depth_threshold: float = 0.5
+@export var cutoff_depth_normal_outline: float = 20
+@export var transition_depth_normal_outline: float = 0.5
+@export var cutoff_curvature_normal_outline: float = 0.5
+@export var transition_curvature_normal_outline: float = 0.05
 @export var line_color: Color = Color(0,0,0)
 @export var highlight_color: Color = Color(1,1,1)
 @export var suggestive_contours_enabled: bool = true
@@ -18,6 +23,11 @@ const depth_bit: int = 4
 const normal_bit: int = 8
 @export var debug_enabled: bool = true
 const debug_bit: int = 16
+@export var measurement_debug_enabled: bool = true
+const measurement_bit: int = 32
+@export var selector_enabled: bool = true
+const selector_bit: int = 64
+
 
 var rd : RenderingDevice
 var shader : RID
@@ -64,27 +74,34 @@ func _render_callback(effect_callback_type: int, render_data: RenderData) -> voi
 		uniform_screen.add_id(screen_tex)
 		
 		needs_normal_roughness = true;
+		
+		var sampler_state : RDSamplerState = RDSamplerState.new()
+		sampler_state.min_filter = RenderingDevice.SAMPLER_FILTER_NEAREST
+		sampler_state.mag_filter = RenderingDevice.SAMPLER_FILTER_NEAREST
+		var normal_sampler : RID = rd.sampler_create(sampler_state)
+		
 		var normal_tex : RID = scene_buffers.get_texture("forward_clustered", "normal_roughness")
 		if not normal_tex: return
 		
 		# create uniform for passing screen normal texture data
 		var uniform_normal : RDUniform = RDUniform.new()
-		uniform_normal.uniform_type = RenderingDevice.UNIFORM_TYPE_IMAGE
+		uniform_normal.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 		uniform_normal.binding = 1
+		uniform_normal.add_id(normal_sampler)
 		uniform_normal.add_id(normal_tex)
 		
-		var depth_tex : RID = scene_buffers.get_depth_layer(view);
+		var depth_tex : RID = scene_buffers.get_depth_layer(view)
 		
-		var sampler_state : RDSamplerState = RDSamplerState.new()
-		sampler_state.min_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
-		sampler_state.mag_filter = RenderingDevice.SAMPLER_FILTER_LINEAR
-		var linear_sampler : RID = rd.sampler_create(sampler_state)
+		sampler_state = RDSamplerState.new()
+		sampler_state.min_filter = RenderingDevice.SAMPLER_FILTER_NEAREST
+		sampler_state.mag_filter = RenderingDevice.SAMPLER_FILTER_NEAREST
+		var depth_sampler : RID = rd.sampler_create(sampler_state)
 		
 		# create uniform for passing screen normal texture data
 		var uniform_depth : RDUniform = RDUniform.new()
 		uniform_depth.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
 		uniform_depth.binding = 2
-		uniform_depth.add_id(linear_sampler)
+		uniform_depth.add_id(depth_sampler)
 		uniform_depth.add_id(depth_tex)
 		
 		var image_uniform_set : RID = UniformSetCacheRD.get_cache(shader, 0, [uniform_screen, uniform_normal, uniform_depth])
@@ -109,26 +126,35 @@ func initialize_compute_shader() -> void:
 	
 func create_push_constants(size: Vector2i, inv_proj_mat: Projection) -> PackedByteArray:
 	var push_constants_float = PackedFloat32Array()
-	## Push Constant need to be in a multiple of 16 bytes
 	push_constants_float.append(size.x)
 	push_constants_float.append(size.y)
 	push_constants_float.append(edge_portion)
 	push_constants_float.append(edge_threshold)
-	## 16
+	#4
 	push_constants_float.append(inv_proj_mat[2].w)
 	push_constants_float.append(inv_proj_mat[3].w)
-	push_constants_float.append(normal_threshold)
+	push_constants_float.append(close_normal_threshold)
+	push_constants_float.append(far_normal_threshold)
+	#8
+	push_constants_float.append(cutoff_depth_normal_outline)
+	push_constants_float.append(transition_depth_normal_outline)
+	push_constants_float.append(cutoff_curvature_normal_outline)
+	push_constants_float.append(transition_curvature_normal_outline)
+	#12
 	push_constants_float.append(depth_threshold)
-	## 32
+	push_constants_float.append(0)
+	push_constants_float.append(0)
+	push_constants_float.append(0)
 	push_constants_float.append(line_color.r)
 	push_constants_float.append(line_color.g)
 	push_constants_float.append(line_color.b)
 	push_constants_float.append(0)
-	## 48
+	#16
 	push_constants_float.append(highlight_color.r)
 	push_constants_float.append(highlight_color.g)
 	push_constants_float.append(highlight_color.b)
-	## Total is 56, need to get to 64 by the end
+	
+	
 	var push_constants_byte : PackedByteArray = push_constants_float.to_byte_array()
 	var radius_array : PackedInt32Array = PackedInt32Array()
 	radius_array.append(edge_radius)
@@ -145,12 +171,14 @@ func create_push_constants(size: Vector2i, inv_proj_mat: Projection) -> PackedBy
 		booleans_packed |= normal_bit
 	if debug_enabled:
 		booleans_packed |= debug_bit
+	if measurement_debug_enabled:
+		booleans_packed |= measurement_bit
+	if selector_enabled:
+		booleans_packed |= selector_bit
 	var packed_boolean_array : PackedInt32Array = PackedInt32Array()
 	packed_boolean_array.append(booleans_packed)
 	var packed_boolean_array_bytes : PackedByteArray = packed_boolean_array.to_byte_array()
 	push_constants_byte.append_array(packed_boolean_array_bytes)
-	for i in range(12):
-		push_constants_byte.append(0)
 	return push_constants_byte
 
 	

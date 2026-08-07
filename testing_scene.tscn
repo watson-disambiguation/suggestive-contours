@@ -1,0 +1,85 @@
+[gd_scene format=3 uid="uid://bi77bdyl16eiv"]
+
+[ext_resource type="Script" uid="uid://b0ctcc4tvowat" path="res://suggestive_contours.gd" id="1_uxw26"]
+[ext_resource type="ArrayMesh" uid="uid://dj5a11krlrby4" path="res://richier.glb" id="2_00g8v"]
+[ext_resource type="Shader" uid="uid://caouxbhwdhmh7" path="res://curvature_source.gdshader" id="3_7yy31"]
+[ext_resource type="ArrayMesh" uid="uid://cu5gf7mwbcbat" path="res://icosahedron.glb" id="4_wlvp0"]
+[ext_resource type="ArrayMesh" uid="uid://cfjtbx48iem4f" path="res://pointy_blob.glb" id="5_kedo2"]
+[ext_resource type="ArrayMesh" uid="uid://csowr2kxf6drn" path="res://bunny.glb" id="6_7gby3"]
+
+[sub_resource type="Environment" id="Environment_r3fl7"]
+background_mode = 1
+background_color = Color(1, 1, 1, 1)
+
+[sub_resource type="CompositorEffect" id="CompositorEffect_n5gfo"]
+resource_local_to_scene = false
+resource_name = ""
+enabled = true
+effect_callback_type = 4
+needs_motion_vectors = false
+needs_normal_roughness = true
+script = ExtResource("1_uxw26")
+edge_portion = 0.4
+close_normal_threshold = 1.5
+far_normal_threshold = 4.5
+cutoff_depth_normal_outline = 4.5
+transition_depth_normal_outline = 3.0
+transition_curvature_normal_outline = 0.25
+suggestive_highlight_enabled = false
+metadata/_custom_type_script = "uid://b0ctcc4tvowat"
+
+[sub_resource type="Compositor" id="Compositor_i5arm"]
+compositor_effects = Array[CompositorEffect]([SubResource("CompositorEffect_n5gfo")])
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_k6766"]
+render_priority = 0
+shader = ExtResource("3_7yy31")
+shader_parameter/curvature_scale = 0.1
+shader_parameter/display_curvature = false
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_tereu"]
+render_priority = 0
+shader = ExtResource("3_7yy31")
+shader_parameter/curvature_scale = 0.1
+shader_parameter/display_curvature = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_cdqbm"]
+render_priority = 0
+shader = ExtResource("3_7yy31")
+shader_parameter/curvature_scale = 0.1
+shader_parameter/display_curvature = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_i5arm"]
+render_priority = 0
+shader = ExtResource("3_7yy31")
+shader_parameter/curvature_scale = 0.1
+shader_parameter/display_curvature = true
+
+[node name="Node3D" type="Node3D" unique_id=2072471511]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1570752767]
+environment = SubResource("Environment_r3fl7")
+compositor = SubResource("Compositor_i5arm")
+
+[node name="Richier" type="MeshInstance3D" parent="." unique_id=548499486]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.18000004, -0.9037977, -0.085)
+visible = false
+mesh = ExtResource("2_00g8v")
+surface_material_override/0 = SubResource("ShaderMaterial_k6766")
+
+[node name="Icosahedron" type="MeshInstance3D" parent="." unique_id=1051949262]
+transform = Transform3D(0.25, 0, 0, 0, 0.25, 0, 0, 0, 0.25, 0, 0, 0)
+visible = false
+mesh = ExtResource("4_wlvp0")
+surface_material_override/0 = SubResource("ShaderMaterial_tereu")
+
+[node name="PointyBlob" type="MeshInstance3D" parent="." unique_id=727576167]
+transform = Transform3D(0.8642748, 0, 0.5030199, 0, 1, 0, -0.5030199, 0, 0.8642748, 0, 0, 0)
+mesh = ExtResource("5_kedo2")
+surface_material_override/0 = SubResource("ShaderMaterial_cdqbm")
+
+[node name="Bunny" type="MeshInstance3D" parent="." unique_id=785466648]
+transform = Transform3D(3, 0, 0, 0, 3, 0, 0, 0, 3, 0, -0.235, 0)
+visible = false
+mesh = ExtResource("6_7gby3")
+surface_material_override/0 = SubResource("ShaderMaterial_i5arm")
